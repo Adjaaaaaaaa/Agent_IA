@@ -194,3 +194,4 @@ cython_debug/
 .cursorindexingignore
 
 .history/
+chroma_db/
