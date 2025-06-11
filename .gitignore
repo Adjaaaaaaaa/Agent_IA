@@ -210,7 +210,7 @@ indexes/
 *.tmp
 *.bak
 *~
-data/ 
+data/db
 
 # IDE configs (décommentées)
 .vscode/
