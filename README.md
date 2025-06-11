@@ -100,5 +100,4 @@ limitations_et_ameliorations:
 contribution: |
   N’hésitez pas à proposer des améliorations, remonter des bugs ou suggérer de nouvelles fonctionnalités via issues ou pull requests.
 
-licence: |
-  Ce projet est sous licence MIT. Voir le fichier LICENSE pour plus d’informations.
+
