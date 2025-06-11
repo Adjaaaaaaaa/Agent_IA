@@ -3,6 +3,7 @@ import streamlit as st  # Importe la bibliothèque Streamlit pour créer l'inter
 from main_agent import get_chain_and_memory  # Importe la fonction pour obtenir la chaîne et la mémoire de l'agent
 from io import StringIO  # Importe StringIO pour gérer les fichiers texte en mémoire
 from memory import reset_memory  # Importe la fonction pour réinitialiser la mémoire
+from main_agent import specific_tools # Import de la fonction d'outil specfique 
 
 import PyPDF2  # Importe PyPDF2 pour lire les fichiers PDF
 
@@ -95,14 +96,14 @@ def main():
     # Instructions pour chaque outil selon la langue
     tool_prompts = {
         "FR": {
-            "Résumé": "Fais un résumé",
-            "Simplification": "Simplifie ce contenu",
-            "Éligibilité CSS": "Vérifie l’éligibilité CSS"
+            "Résumé": "Fais un résumé structuré avec emojis (📋🩺💊⚠️📅)",
+            "Simplification": "Simplifie ce contenu médical en langage patient accessible",
+            "Éligibilité CSS": "Analyse l'éligibilité CSS avec calcul détaillé des ressources"
         },
         "EN": {
-            "Summary": "Summarize this content",
-            "Simplification": "Simplify this content",
-            "CSS Eligibility": "Check CSS eligibility"
+            "Summary": "Make a structured summary with emojis (📋🩺💊⚠️📅",
+            "Simplification": "Simplify this medical content in accessible patient language",
+            "CSS Eligibility": "Analyze CSS eligibility with detailed resource calculation"
         }
     }
 
@@ -171,6 +172,18 @@ Reply only in {lang_label}, clearly and briefly."""
                     prompt = f"{instruction} : {question}\nRéponds uniquement en {lang_label}."
 
                 with st.spinner(t["processing"]):
+                     #  Essayer d'abord l'outil spécialisé
+                    reponse_outil = specific_tools(question, outil, lang)
+            
+                    if reponse_outil:
+                        answer = reponse_outil
+                    else:
+                # Fallback vers la méthode originale
+                        instruction = tool_prompts[lang][outil]
+                        prompt = f"{instruction} : {question}\nRéponds uniquement en {lang_options[lang]}."
+                        result = st.session_state.chain.invoke({"question": prompt})
+                        answer = result.get("answer", "Pas de réponse.")
+
                     # Affiche un spinner pendant le traitement
                     try:
                         result = st.session_state.chain.invoke({"question": prompt})  # Appelle l'agent IA

@@ -133,3 +133,22 @@ if __name__ == "__main__":
 
     # Démarrage de la boucle interactive console
     interactive_loop(chain, memory)
+
+    # Fonction d'utilisation d'outls spécifique 
+def specific_tools(question, choosen_tool, langue="FR"):
+    """
+    Fonction pour traiter avec l'outil spécialisé choisi
+    """
+    # Pour l'instant, utilisation basique
+    if choosen_tool in ["Résumé", "Summary", "ملخص"]:
+        prompt = f"Fais un résumé structuré avec emojis : {question}"
+    elif choosen_tool in ["Simplification", "تبسيط"]:
+        prompt = f"Simplifie ce contenu médical : {question}"
+    elif choosen_tool in ["Éligibilité CSS", "CSS Eligibility", "التحقق من أهلية CSS"]:
+        prompt = f"Analyse l'éligibilité CSS : {question}"
+    else:
+        return None
+    
+    # Appel du modèle
+    response = model.invoke(prompt)
+    return response.content if hasattr(response, 'content') else str(response)

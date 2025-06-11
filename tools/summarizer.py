@@ -1,9 +1,22 @@
 from langchain_core.tools import Tool
 
 def summarize(text: str) -> str:
-    # Ici tu peux appeler un modèle ou écrire ta logique résumé simple
-    # Pour exemple, on fait un résumé factice (à remplacer)
-    return text[:300] + "..." if len(text) > 300 else text
+    # Résumé amélioré court et simple
+    if len(text) <= 200:
+        return text
+    
+    # Détection contexte santé
+    text_lower = text.lower()
+    
+    if 'ald' in text_lower or 'affection' in text_lower:
+        return f"📋 ALD: Prise en charge 100% pathologie chronique. {text[:100]}..."
+    elif 'css' in text_lower or 'complémentaire' in text_lower:
+        return f"💰 CSS: Aide santé selon revenus (847€-1779€). {text[:100]}..."
+    elif 'ame' in text_lower:
+        return f"🌍 AME: Soins gratuits résidents irréguliers. {text[:100]}..."
+    else:
+        # Résumé simple: prendre début + fin
+        return text[:150] + "..." + text[-50:] if len(text) > 200 else text
 
 summarizer_tool = Tool(
     name="Summarizer",
