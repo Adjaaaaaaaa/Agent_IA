@@ -192,3 +192,27 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+.history/
+chroma_db/
+
+# Jupyter Lab user config
+.jupyter/
+
+# Langchain / FAISS / indexes
+faiss_index/
+indexes/
+
+# Environment files with variants
+.env.*
+
+# Temp files
+*.tmp
+*.bak
+*~
+
+# IDE configs (décommentées)
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
