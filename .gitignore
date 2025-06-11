@@ -210,7 +210,10 @@ indexes/
 *.tmp
 *.bak
 *~
+data/db
 
 # IDE configs (décommentées)
 .vscode/
 .idea/
+.DS_Store
+Thumbs.db
