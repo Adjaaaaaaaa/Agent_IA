@@ -1,9 +1,10 @@
 import os
 from dotenv import load_dotenv
 from langchain_ollama import ChatOllama, OllamaEmbeddings
-# from langchain_deepseek import ChatDeepSeek, DeepSeekEmbeddings  # Option DeepSeek (décommenter si clé dispo)
+from langchain_deepseek import ChatDeepSeek 
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
+from langchain_huggingface import HuggingFaceEmbeddings
 from rag_chain import load_documents, split_documents, create_or_load_vectordb
 from memory import get_memory
 import logging
@@ -18,14 +19,24 @@ load_dotenv(override=True)
 
 # Configuration du modèle de langage (LLM) et du modèle d'embeddings
 
-# Par défaut, on utilise Ollama avec le modèle llama3
-model = ChatOllama(model="llama3", temperature=0)
-embedding_model = OllamaEmbeddings(model="nomic-embed-text")
+# Configuration DeepSeek
+deepseek_api_key = os.getenv("DEEPSEEK_API_KEY")
 
-# Alternative DeepSeek (décommenter si tu as la clé API et que tu souhaites utiliser ce modèle)
-# model = ChatDeepSeek(model="deepseek-chat", api_key=os.getenv("DEEPSEEK_API_KEY"))
-# embedding_model = DeepSeekEmbeddings(api_key=os.getenv("DEEPSEEK_API_KEY"), model="deepseek-embedding")
-
+if deepseek_api_key:
+    # Utiliser DeepSeek pour le LLM seulement
+    model = ChatDeepSeek(
+        model="deepseek-chat", 
+        api_key=deepseek_api_key,
+        temperature=0
+    )
+    # Garder Ollama pour les embeddings
+    embedding_model = OllamaEmbeddings(model="nomic-embed-text")
+    print("✅ DeepSeek configuré pour LLM + Ollama pour embeddings")
+else:
+    # Fallback vers Ollama si pas de clé DeepSeek
+    model = ChatOllama(model="llama3", temperature=0)
+    embedding_model = OllamaEmbeddings(model="nomic-embed-text")
+    print("⚠️ Pas de clé DeepSeek, utilisation d'Ollama")
 
 def reset_memory(memory):
     """
@@ -33,7 +44,6 @@ def reset_memory(memory):
     """
     memory.clear()
     print("🧹 Mémoire réinitialisée.")
-
 
 def get_chain_and_memory():
     """
@@ -55,11 +65,11 @@ def get_chain_and_memory():
     # Créer ou charger la base vectorielle persistante (ex: FAISS, Chroma, etc.)
     vectordb = create_or_load_vectordb(chunks, persist_directory=db_dir)
 
-    # Création d’un retriever (pour récupérer les passages pertinents)
+    # Création d'un retriever (pour récupérer les passages pertinents)
     retriever = vectordb.as_retriever()
 
     # Récupération de la mémoire conversationnelle (buffer)
-    memory = get_memory()
+    memory = get_memory(llm_model=model)
 
     # Création de la chaîne conversationnelle avec LLM + retriever + mémoire
     chain = ConversationalRetrievalChain.from_llm(
@@ -71,34 +81,6 @@ def get_chain_and_memory():
 
     return chain, memory
 
-
-# def interactive_loop(chain, memory):
-#     """
-#     Boucle interactive en console pour poser des questions et afficher les réponses.
-#     Gestion des commandes spéciales:
-#      - 'exit' : quitte la boucle
-#      - 'reset': réinitialise la mémoire
-#     """
-#     print("💬 Pose ta question (tape 'exit' pour quitter, 'reset' pour réinitialiser la mémoire)")
-
-#     while True:
-#         query = input("➡️  ")
-#         if query.lower() == "exit":
-#             print("👋 Au revoir !")
-#             break
-#         elif query.lower() == "reset":
-#             memory.clear()
-#             print("🧹 Mémoire réinitialisée.")
-#             continue
-
-#         # Interrogation de la chaîne avec la question utilisateur
-#         result = chain.invoke({"question": query})
-        
-#         # Affichage de la réponse (si disponible)
-#         answer = result.get("answer", "Pas de réponse.")
-#         print(f"🤖 Réponse : {answer}\n")
-
-        #answer = generate_answer(prompt)
 def interactive_loop(chain, memory):
     """
     Boucle interactive en console pour poser des questions et afficher les réponses.
@@ -127,10 +109,12 @@ def interactive_loop(chain, memory):
             print(f"❌ Erreur lors du traitement de la requête : {e}")
             continue
 
-def specific_tools(question, outil_choisi, langue="FR"):
-    """Outils spécialisés santé"""
-    
-    if outil_choisi in ["Résumé", "Summary"]:
+def specific_tools(question, choosen_tool, langue="FR"):
+    """
+    Fonction pour traiter avec l'outil spécialisé choisi
+    """
+    # Prompts optimisés pour DeepSeek
+    if choosen_tool in ["Résumé", "Summary"]:
         prompt = f"""Résume ce document médical avec cette structure :
 📋 DIAGNOSTIC PRINCIPAL
 🩺 EXAMENS CLÉS  
@@ -140,7 +124,7 @@ def specific_tools(question, outil_choisi, langue="FR"):
 
 Document: {question}"""
         
-    elif outil_choisi in ["Simplification"]:
+    elif choosen_tool in ["Simplification"]:
         prompt = f"""Simplifie ce texte médical pour un patient :
 - Remplace les mots compliqués
 - Explique avec "vous" et "votre"
@@ -148,7 +132,7 @@ Document: {question}"""
 
 Texte: {question}"""
         
-    elif outil_choisi in ["Éligibilité CSS"]:
+    elif choosen_tool in ["Éligibilité CSS"]:
         prompt = f"""Analyse l'éligibilité CSS avec les plafonds 2024 :
 1 pers: 847€, 2 pers: 1271€, 3 pers: 1525€, 4 pers: 1779€
 
@@ -158,13 +142,34 @@ Donne: composition foyer, calcul ressources, décision éligibilité"""
     else:
         return None
     
-    response = model.invoke(prompt)
-    return response.content if hasattr(response, 'content') else str(response)
+    # Appel du modèle (DeepSeek ou Ollama selon config)
+    try:
+        response = model.invoke(prompt)
+        return response.content if hasattr(response, 'content') else str(response)
+    except Exception as e:
+        print(f"❌ Erreur dans specific_tools : {e}")
+        return None
+
+def test_deepseek():
+    """Test rapide de DeepSeek"""
+    if deepseek_api_key:
+        try:
+            response = model.invoke("Bonjour, peux-tu me confirmer que tu es DeepSeek ?")
+            print(f"🤖 Test DeepSeek : {response.content[:100]}...")
+            return True
+        except Exception as e:
+            print(f"❌ Erreur test DeepSeek : {e}")
+            return False
+    return False
 
 if __name__ == "__main__":
+    # Test du modèle configuré
+    if deepseek_api_key:
+        print("🧪 Test de DeepSeek...")
+        test_deepseek()
+    
     # Chargement de la chaîne et mémoire au lancement du script
     chain, memory = get_chain_and_memory()
 
     # Démarrage de la boucle interactive console
     interactive_loop(chain, memory)
-

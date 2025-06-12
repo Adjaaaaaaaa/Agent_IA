@@ -1,6 +1,8 @@
 import os
 import requests
 from dotenv import load_dotenv
+from langchain_deepseek import ChatDeepSeek
+from langchain_community.embeddings import HuggingFaceEmbeddings
 
 # Embeddings
 from langchain_ollama import OllamaEmbeddings
@@ -19,11 +21,10 @@ from langchain_community.vectorstores import Chroma
 load_dotenv(override=True)
 
 # ==== Embeddings par défaut ====
+
 embedding_model = OllamaEmbeddings(model="nomic-embed-text")
 
-# ==== Alternative DeepSeek ====
-# Pour utiliser DeepSeek, décommentez la ligne suivante et commentez la ligne Ollama ci-dessus :
-# embedding_model = DeepSeekEmbeddings(api_key=os.getenv("DEEPSEEK_API_KEY"), model="deepseek-embedding")
+
 
 def load_documents(path="./data/documents"):
     """Charge tous les documents pris en charge dans un dossier."""
