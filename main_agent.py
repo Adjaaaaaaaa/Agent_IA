@@ -69,7 +69,7 @@ def get_chain_and_memory():
     retriever = vectordb.as_retriever()
 
     # Récupération de la mémoire conversationnelle (buffer)
-    memory = get_memory()
+    memory = get_memory(llm_model=model)
 
     # Création de la chaîne conversationnelle avec LLM + retriever + mémoire
     chain = ConversationalRetrievalChain.from_llm(
