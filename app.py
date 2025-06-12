@@ -111,7 +111,7 @@ def main():
     st.title(t["title"])  # Affiche le titre de la page
     tab_chat, tab_upload = st.tabs([t["chat_tab"], t["upload_tab"]])  # Crée deux onglets : chat et upload
 
-    # Onglet Chat
+# Onglet Chat
     with tab_chat:
         outil_labels = tool_options[lang]  # Liste des outils selon la langue
         outil = st.selectbox(t["tool_label"], outil_labels)  # Sélecteur d'outil
@@ -123,71 +123,69 @@ def main():
                 # Affiche un avertissement si la question est vide
                 st.warning(t["empty_warning"])
             else:
-                lang_label = lang_options[lang]  # Récupère le label de la langue
+                # Affiche un spinner pendant le traitement
+                with st.spinner(t["processing"]):
+                    try:
+                        # Essaie d'abord l'outil spécialisé
+                        reponse_outil = specific_tools(question, outil, lang)
 
-                # Génère le prompt selon l'outil sélectionné et la langue
-                if outil in ["Résumé", "Summary"]:
-                    if lang == "FR":
-                        prompt = f"""Tu es un assistant médical intelligent. Résume clairement et utilement le sujet suivant pour un patient non spécialiste :
+                        if reponse_outil:
+                            # Utilise la réponse de l'outil spécialisé
+                            answer = reponse_outil
+                        else:
+                            # Utilise la méthode originale en cas d'échec
+                            lang_label = lang_options[lang]  # Récupère le label de la langue
+
+                            # Génère le prompt selon l'outil sélectionné et la langue
+                            if outil in ["Résumé", "Summary"]:
+                                if lang == "FR":
+                                    prompt = f"""Tu es un assistant médical intelligent. Résume clairement et utilement le sujet suivant pour un patient non spécialiste :
 "{question}"
 - Ne fais pas de liste à puces.
 - Utilise un ton informatif et fluide.
 - Reformule avec tes propres mots.
 Réponds uniquement en {lang_label}."""
-                    else:
-                        prompt = f"""You are a smart medical assistant. Provide a clear and useful summary of the following topic for a non-expert patient:
+                                else:
+                                    prompt = f"""You are a smart medical assistant. Provide a clear and useful summary of the following topic for a non-expert patient:
 "{question}"
 - Avoid bullet points.
 - Use an informative and natural tone.
 - Rephrase in your own words.
 Reply only in {lang_label}."""
 
-                elif outil in ["Simplification"]:
-                    if lang == "FR":
-                        prompt = f"""Simplifie le contenu suivant pour qu’il soit compréhensible par un patient sans connaissances médicales :
+                            elif outil in ["Simplification"]:
+                                if lang == "FR":
+                                    prompt = f"""Simplifie le contenu suivant pour qu'il soit compréhensible par un patient sans connaissances médicales :
 "{question}"
 - Utilise des phrases courtes, un vocabulaire simple.
 - Garde un ton bienveillant.
 Réponds uniquement en {lang_label}."""
-                    else:
-                        prompt = f"""Simplify the following content so that any patient without medical knowledge can understand:
+                                else:
+                                    prompt = f"""Simplify the following content so that any patient without medical knowledge can understand:
 "{question}"
 - Use short sentences and simple vocabulary.
 - Keep a helpful tone.
 Reply only in {lang_label}."""
 
-                elif outil in ["Éligibilité CSS", "CSS Eligibility"]:
-                    if lang == "FR":
-                        prompt = f"""Évalue si la personne décrite dans ce texte est éligible à la Complémentaire Santé Solidaire (CSS).
+                            elif outil in ["Éligibilité CSS", "CSS Eligibility"]:
+                                if lang == "FR":
+                                    prompt = f"""Évalue si la personne décrite dans ce texte est éligible à la Complémentaire Santé Solidaire (CSS).
 "{question}"
 Réponds uniquement en {lang_label}, de façon claire et concise."""
-                    else:
-                        prompt = f"""Assess whether the person described in the following text is eligible for the French CSS (Complémentaire Santé Solidaire) health support.
+                                else:
+                                    prompt = f"""Assess whether the person described in the following text is eligible for the French CSS (Complémentaire Santé Solidaire) health support.
 "{question}"
 Reply only in {lang_label}, clearly and briefly."""
 
-                else:
-                    # Cas générique pour d'autres outils
-                    instruction = tool_prompts[lang][outil]
-                    prompt = f"{instruction} : {question}\nRéponds uniquement en {lang_label}."
+                            else:
+                                # Cas générique pour d'autres outils
+                                instruction = tool_prompts[lang][outil]
+                                prompt = f"{instruction} : {question}\nRéponds uniquement en {lang_label}."
 
-                with st.spinner(t["processing"]):
-                     #  Essayer d'abord l'outil spécialisé
-                    reponse_outil = specific_tools(question, outil, lang)
-            
-                    if reponse_outil:
-                        answer = reponse_outil
-                    else:
-                # Fallback vers la méthode originale
-                        instruction = tool_prompts[lang][outil]
-                        prompt = f"{instruction} : {question}\nRéponds uniquement en {lang_options[lang]}."
-                        result = st.session_state.chain.invoke({"question": prompt})
-                        answer = result.get("answer", "Pas de réponse.")
+                            # Appelle l'agent IA
+                            result = st.session_state.chain.invoke({"question": prompt})
+                            answer = result.get("answer", "Pas de réponse.")  # Récupère la réponse
 
-                    # Affiche un spinner pendant le traitement
-                    try:
-                        result = st.session_state.chain.invoke({"question": prompt})  # Appelle l'agent IA
-                        answer = result.get("answer", "Pas de réponse.")  # Récupère la réponse
                     except Exception as e:
                         answer = f"❌ Erreur : {e}"  # Affiche l'erreur en cas d'échec
 

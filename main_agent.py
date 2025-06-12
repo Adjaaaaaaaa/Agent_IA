@@ -127,6 +127,40 @@ def interactive_loop(chain, memory):
             print(f"❌ Erreur lors du traitement de la requête : {e}")
             continue
 
+def specific_tools(question, outil_choisi, langue="FR"):
+    """Outils spécialisés santé"""
+    
+    if outil_choisi in ["Résumé", "Summary"]:
+        prompt = f"""Résume ce document médical avec cette structure :
+📋 DIAGNOSTIC PRINCIPAL
+🩺 EXAMENS CLÉS  
+💊 TRAITEMENTS
+⚠️ POINTS ATTENTION
+📅 SUIVI
+
+Document: {question}"""
+        
+    elif outil_choisi in ["Simplification"]:
+        prompt = f"""Simplifie ce texte médical pour un patient :
+- Remplace les mots compliqués
+- Explique avec "vous" et "votre"
+- Phrases courtes et claires
+
+Texte: {question}"""
+        
+    elif outil_choisi in ["Éligibilité CSS"]:
+        prompt = f"""Analyse l'éligibilité CSS avec les plafonds 2024 :
+1 pers: 847€, 2 pers: 1271€, 3 pers: 1525€, 4 pers: 1779€
+
+Situation: {question}
+
+Donne: composition foyer, calcul ressources, décision éligibilité"""
+    else:
+        return None
+    
+    response = model.invoke(prompt)
+    return response.content if hasattr(response, 'content') else str(response)
+
 if __name__ == "__main__":
     # Chargement de la chaîne et mémoire au lancement du script
     chain, memory = get_chain_and_memory()
@@ -134,21 +168,3 @@ if __name__ == "__main__":
     # Démarrage de la boucle interactive console
     interactive_loop(chain, memory)
 
-    # Fonction d'utilisation d'outls spécifique 
-def specific_tools(question, choosen_tool, langue="FR"):
-    """
-    Fonction pour traiter avec l'outil spécialisé choisi
-    """
-    # Pour l'instant, utilisation basique
-    if choosen_tool in ["Résumé", "Summary", "ملخص"]:
-        prompt = f"Fais un résumé structuré avec emojis : {question}"
-    elif choosen_tool in ["Simplification", "تبسيط"]:
-        prompt = f"Simplifie ce contenu médical : {question}"
-    elif choosen_tool in ["Éligibilité CSS", "CSS Eligibility", "التحقق من أهلية CSS"]:
-        prompt = f"Analyse l'éligibilité CSS : {question}"
-    else:
-        return None
-    
-    # Appel du modèle
-    response = model.invoke(prompt)
-    return response.content if hasattr(response, 'content') else str(response)
