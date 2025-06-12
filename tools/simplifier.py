@@ -1,7 +1,5 @@
 from langchain_core.tools import Tool
-from langchain_ollama import ChatOllama
-
-llm = ChatOllama(model="llama3", temperature=0)
+from main_agent import model  # Import pour utiliser DeepSeek ou Ollama selon config
 
 def simplify_text(text: str) -> str:
     """Simplifie un texte médical/administratif"""
@@ -25,7 +23,7 @@ TEXTE : {text}
 VERSION SIMPLE :"""
 
     try:
-        response = llm.invoke(prompt)
+        response = model.invoke(prompt)
         return response.content if hasattr(response, 'content') else str(response)
     except:
         return "Texte simplifié : " + (text[:300] + "..." if len(text) > 300 else text)
