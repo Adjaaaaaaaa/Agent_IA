@@ -6,7 +6,7 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 
 # Embeddings
 from langchain_ollama import OllamaEmbeddings
-# from langchain_deepseek import DeepSeekEmbeddings  # Option DeepSeek, décommenter si nécessaire
+# from langchain_deepseek import DeepSeekEmbeddings  # Option DeepSeek, non fonctionnnel
 
 
 # Loaders

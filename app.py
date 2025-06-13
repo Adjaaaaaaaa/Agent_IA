@@ -42,6 +42,12 @@ def extract_text_from_pdf(file) -> str:
         text += page.extract_text() + "\n"
     return text
 
+def truncate_text(text, max_chars=3000):
+    """Tronque le texte pour éviter de dépasser la limite"""
+    if len(text) > max_chars:
+        return text[:max_chars] + "..."
+    return text
+
 def main():
     """
     Main entry point for the Streamlit AI Health Agent application.
@@ -119,12 +125,16 @@ def main():
         "FR": {
             "Résumé": "Fais un résumé structuré avec emojis (📋🧪💊⚠️📅)",
             "Simplification": "Simplifie ce contenu médical en langage patient accessible",
-            "Éligibilité": "Analyse l'éligibilité CSS avec calcul détaillé des ressources"
+            "Éligibilité": "Analyse l'éligibilité CSS avec calcul détaillé des ressources",
+            "Faire un résumé": "Fais un résumé structuré avec emojis (📋🧪💊⚠️📅)",
+            "Poser une question": "Réponds à cette question sur le contenu"
         },
         "EN": {
             "Summary": "Make a structured summary with emojis (📋🧪💊⚠️📅)",
             "Simplification": "Simplify this medical content in accessible patient language",
-            "Eligibility": "Analyze CSS eligibility with detailed resource calculation"
+            "Eligibility": "Analyze CSS eligibility with detailed resource calculation",
+            "Summarize": "Make a structured summary with emojis (📋🧪💊⚠️ 📅)",
+            "Ask a question": "Answer this question about the content"
         }
     }
 
@@ -207,32 +217,84 @@ def main():
 
     with tab_upload:
         st.write(t["upload_label"])
-        uploaded_file = st.file_uploader("", type=["pdf", "txt"])
+        uploaded_file = st.file_uploader("Choisir un fichier", type=["pdf", "txt"], label_visibility="collapsed")
 
         if uploaded_file is not None:
-            if uploaded_file.type == "application/pdf":
-                text = extract_text_from_pdf(uploaded_file)
-            else:
-                stringio = StringIO(uploaded_file.getvalue().decode("utf-8"))
-                text = stringio.read()
+            try:
+                # Extraction du texte selon le type de fichier
+                if uploaded_file.type == "application/pdf":
+                    extracted_text = extract_text_from_pdf(uploaded_file)
+                else:
+                    stringio = StringIO(uploaded_file.getvalue().decode("utf-8"))
+                    extracted_text = stringio.read()
 
-            st.text_area("Contenu extrait", value=text, height=200)
-            action = st.selectbox(t["action_label"], [t["summary_option"], t["question_option"]])
-            prompt = ""
-            lang_instr = "Réponds uniquement en Français." if lang == "FR" else "Answer only in English."
+                # Affichage du contenu extrait (aperçu)
+                display_text = extracted_text[:500] + "..." if len(extracted_text) > 500 else extracted_text
+                st.text_area("Aperçu du contenu extrait", value=display_text, height=150, disabled=True)
+                
+                # Sélection de l'action
+                action = st.selectbox(t["action_label"], [t["summary_option"], t["question_option"]])
+                
+                # Interface selon l'action choisie
+                if action == t["summary_option"]:
+                    st.write("📋 Génération d'un résumé structuré du document...")
+                    
+                    if st.button(t["send_request_btn"], key="summary_btn"):
+                        with st.spinner(t["processing"]):
+                            try:
+                                # Tronquer le texte pour éviter les erreurs de tokens
+                                truncated_text = extracted_text[:3000] + "..." if len(extracted_text) > 3000 else extracted_text
+                                
+                                prompt = f"""Fais un résumé structuré de ce document médical avec des emojis (📋🩺💊⚠️📅) :
 
-            if action == t["summary_option"]:
-                prompt = f"{tool_prompts[lang][action]} : {text}\n{lang_instr}"
-            else:
-                question_file = st.text_input(t["question_file_label"])
-                if question_file:
-                    instruction = tool_prompts[lang][action]
-                    prompt = f"{instruction} : {text}\n{t['question_file_label']} {question_file}\n{lang_instr}"
+{truncated_text}
 
-            if prompt and st.button(t["send_request_btn"]):
-                with st.spinner(t["processing"]):
-                    answer = st.session_state.chain.invoke({"question": prompt}).get("answer", "Pas de réponse.")
-                    st.write(f"**{t['response_label']}** {answer}")
+Réponds en {'Français' if lang == 'FR' else 'English'}."""
+                                
+                                result = st.session_state.chain.invoke({"question": prompt})
+                                answer = result.get("answer", "Pas de réponse.")
+                                
+                                st.success("✅ Résumé généré avec succès !")
+                                st.markdown(f"**{t['response_label']}**")
+                                st.markdown(answer)
+                            except Exception as e:
+                                st.error(f"❌ Erreur lors de la génération du résumé : {e}")
+                
+                else:  # Question sur le document
+                    st.write("❓ Posez une question sur le contenu du document...")
+                    file_question = st.text_input(
+                        t["question_file_label"], 
+                        placeholder="Ex: Quels sont les symptômes mentionnés ?"
+                    )
+                    
+                    if file_question and st.button(t["send_request_btn"], key="question_btn"):
+                        with st.spinner(t["processing"]):
+                            try:
+                                # Tronquer le texte pour laisser de la place à la question
+                                truncated_text = extracted_text[:2500] + "..." if len(extracted_text) > 2500 else extracted_text
+                                
+                                prompt = f"""En tant qu'assistant médical, réponds à cette question en te basant sur le contenu suivant :
+
+CONTENU DU DOCUMENT :
+{truncated_text}
+
+QUESTION : {file_question}
+
+Réponds de manière claire et précise en {'Français' if lang == 'FR' else 'English'}."""
+                                
+                                result = st.session_state.chain.invoke({"question": prompt})
+                                answer = result.get("answer", "Pas de réponse.")
+                                
+                                st.success("✅ Réponse générée avec succès !")
+                                st.markdown(f"**Question :** {file_question}")
+                                st.markdown(f"**{t['response_label']}**")
+                                st.markdown(answer)
+                            except Exception as e:
+                                st.error(f"❌ Erreur lors de la réponse : {e}")
+                        
+            except Exception as e:
+                st.error(f"❌ Erreur lors de la lecture du fichier : {e}")
+                st.info("💡 Assurez-vous que le fichier est un PDF valide ou un fichier texte UTF-8.")
 
 if __name__ == "__main__":
     main()
